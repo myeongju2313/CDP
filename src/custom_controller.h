@@ -45,6 +45,8 @@ public:
   void addZmpOffset();
   void hip_compensator();
   void Compliant_control(Eigen::Vector12d desired_leg_q);
+
+  void CDP_controller();
   
   Eigen::Vector12d pre_motor_q_leg_;
   Eigen::Vector12d current_motor_q_leg_;
@@ -84,6 +86,10 @@ public:
   Eigen::Vector3d com_support_init_;
   Eigen::Vector3d com_float_init_;
   Eigen::Vector3d com_float_current_;
+  Eigen::Vector3d com_float_current_dot;
+  Eigen::Vector3d com_float_current_dot_LPF;
+  Eigen::Vector3d com_float_current_dot_prev;
+  Eigen::Vector3d com_float_current_ddot;
   Eigen::Vector3d com_support_current_;
   Eigen::Vector3d com_support_current_dot;
   Eigen::Vector3d com_support_current_LPF;
@@ -96,6 +102,11 @@ public:
   Eigen::Isometry3d lfoot_float_init_;
   Eigen::Isometry3d rfoot_float_init_;
   double wn = 0;
+
+  Eigen::Vector3d CDP_d_hat;
+  Eigen::Vector3d CDP_d_hat_p;
+  Eigen::Vector3d CDP_d_hat_pp;
+  Eigen::Vector3d CDP_u;
 
 
   Eigen::Isometry3d supportfoot_float_current_; 
