@@ -127,8 +127,7 @@ void CustomController::updateInitialState()
 {
   if(walking_tick_mj == 0)
   {
-    calculateFootStepTotal();
-    //calculateFootStepTotal_MJ();
+    calculateFootStepTotal(); 
 
     com_float_init_ =  rd_.link_[COM_id].xpos ;  
 
@@ -344,7 +343,7 @@ void CustomController::calculateFootStepTotal()
 
   if(length_to_target == 0)
   {
-    middle_total_step_number = 50; //
+    middle_total_step_number = 6; //
     dlength = 0;
   }
 
@@ -1227,14 +1226,14 @@ void CustomController::previewcontroller(double dt, int NL, int tick, double x_i
     {
         px_ref(i) = ref_zmp_(i,0);
         py_ref(i) = ref_zmp_(i,1);
-      // if((int)current_step_num_ % 2 == 0)
-      // {
-      //   py_ref(i) = -0.1025;       
-      // }
-      // else if((int)current_step_num_ % 2 == 1)
-      // {
-      //   py_ref(i) = 0.1025; 
-      // }
+      if((int)current_step_num_ % 2 == 0)
+      {
+        py_ref(i) = -0.1025;       
+      }
+      else if((int)current_step_num_ % 2 == 1)
+      {
+        py_ref(i) = 0.1025; 
+      }
     }
         
     Eigen::VectorXd px, py;
@@ -1433,7 +1432,7 @@ void CustomController::CDP_controller()
 
   double kp_x, kv_x, kp_y, kv_y, kp_z, kv_z = 0;
   kp_x = 263; kv_y = 11;
-  kp_y = 263; kv_y = 11;
+  kp_y = 725; kv_y = 14;
   kp_z = 263; kv_z = 11;
   
   CDP_u(0) = com_desired_(0) + 0.0 * CDP_d_hat(0);
@@ -1456,9 +1455,9 @@ void CustomController::CDP_controller()
   CDP_d_hat_p = CDP_d_hat;
   CDP_d_hat = ( 2*(1 + w*zeta*del_t)*CDP_d_hat_p - CDP_d_hat_pp + w*w*del_t*del_t*CDP_d )/( 1 + w*w*del_t*del_t + 2*w*zeta*del_t );
  
-  MJ_graph << com_desired_(0) << "," << com_desired_(1) << "," << CDP_u(0) << "," << CDP_u(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << endl;
+  MJ_graph << com_desired_(0) << "," << com_desired_(1) << "," << CDP_u(0) << "," << CDP_u(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << "," << com_float_current_dot_LPF(1) << "," << com_float_current_ddot (1) << endl;
   MJ_ZMP << CDP_d(0) << "," << CDP_d(1) << "," << CDP_d(2) << "," << CDP_d_hat(0) << "," << CDP_d_hat(1) << "," << CDP_d_hat(2) << endl;
-
+ 
 }
 
 
