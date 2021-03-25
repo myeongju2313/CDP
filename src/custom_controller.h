@@ -48,6 +48,9 @@ public:
 
   void CDP_controller();
   
+  void SC_err_compen(Eigen::Vector3d y_des);
+  
+
   Eigen::Vector12d pre_motor_q_leg_;
   Eigen::Vector12d current_motor_q_leg_;
   Eigen::Vector12d d_hat_b;
@@ -108,6 +111,10 @@ public:
   Eigen::Vector3d CDP_d_hat_pp;
   Eigen::Vector3d CDP_u;
 
+  double sc_err_before = 0;
+  double sc_err_after = 0;
+  double SC_com = 0;
+  double sc_err = 0;
 
   Eigen::Isometry3d supportfoot_float_current_; 
 
@@ -201,5 +208,6 @@ private:
   unsigned int initial_flag = 0;
   const double hz_ = 2000.0;
 };
+
 
 
