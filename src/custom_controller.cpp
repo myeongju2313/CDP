@@ -1297,9 +1297,7 @@ void CustomController::previewcontroller(double dt, int NL, int tick, double x_i
    XD = A*preview_x + B*UX;
    YD = A*preview_y + B*UY;
 
-   SC_err_compen(YD);
-
-   YD(0) = YD(0) - SC_com;
+   SC_err_compen(YD); 
 
    if(walking_tick_mj == 0)
    {
@@ -1338,13 +1336,17 @@ void CustomController::SC_err_compen(Eigen::Vector3d y_des)
    sc_err = sc_err_after - sc_err_before;
  }
 
- SC_com = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.002*hz_, sc_err, 0, 0.0, 0.0);
+ SC_com = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.003*hz_, sc_err, 0, 0.0, 0.0);
 
 }
 void CustomController::getPelvTrajectory()
 {
  double z_rot = foot_step_support_frame_(current_step_num_,5);
 
+ if(walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 0.003*hz_)
+ {
+   com_support_current_(1) = com_support_current_(1) + SC_com;
+ }
  pelv_trajectory_support_.translation()(0) = pelv_support_current_.translation()(0) + 0.7*(CDP_u(0) - com_support_current_(0)) ;//- 0.01 * zmp_err_(0) * 0;
  pelv_trajectory_support_.translation()(1) = pelv_support_current_.translation()(1) + 0.7*(CDP_u(1) - com_support_current_(1)) ;//- 0.01 * zmp_err_(1) * 0;
 
