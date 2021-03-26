@@ -93,9 +93,7 @@ void CustomController::computeSlow()
            if(walking_tick_mj % 10 == 0)
            {
              //MJ_graph << com_float_current_dot(1) << "," << com_float_current_ddot(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << "," << rd_.link_[COM_id].v(0) << "," << rd_.link_[COM_id].v(1) << "," << preview_x(1) << "," << preview_y(1) << endl;
-           }
-           
-           //MJ_graph << com_desired_(0) << "," << com_support_current_(0) << "," << com_desired_(1) << "," << com_support_current_(1) << endl;
+           }            
            
            desired_q_not_compensated_ = ref_q_;
 
@@ -350,7 +348,7 @@ void CustomController::calculateFootStepTotal()
 
  if(length_to_target == 0)
  {
-   middle_total_step_number = 5; //
+   middle_total_step_number = 12; //
    dlength = 0;
  }
 
@@ -1346,14 +1344,14 @@ void CustomController::SC_err_compen(Eigen::Vector3d x_des, Eigen::Vector3d y_de
     sc_err = sc_err_after - sc_err_before;
   }
 
-  SC_com(0) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.003*hz_, sc_err(0), 0, 0.0, 0.0);
-  SC_com(1) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.003*hz_, sc_err(1), 0, 0.0, 0.0);
+  SC_com(0) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.005*hz_, sc_err(0), 0, 0.0, 0.0);
+  SC_com(1) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.005*hz_, sc_err(1), 0, 0.0, 0.0);
 }
 void CustomController::getPelvTrajectory()
 {
  double z_rot = foot_step_support_frame_(current_step_num_,5);
 
- if(walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 0.003*hz_)
+ if(walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 0.005*hz_)
  {
    com_support_current_(0) = com_support_current_(0) + SC_com(0);
    com_support_current_(1) = com_support_current_(1) + SC_com(1);
@@ -1468,16 +1466,16 @@ void CustomController::CDP_controller()
 
  double kp_x, kv_x, kp_y, kv_y, kp_z, kv_z = 0;
  kp_x = 103; kv_y = 11;
- //kp_y = 725; kv_y = 14; // 실험
- kp_y = 103; kv_y = 11; // 시뮬
+ kp_y = 1005; kv_y = 14; // 실험
+ //kp_y = 103; kv_y = 11; // 시뮬
  kp_z = 103; kv_z = 11;
 
  CDP_u(0) = com_desired_(0) + 0.0 * CDP_d_hat(0);
- CDP_u(1) = com_desired_(1) + 0.0 * CDP_d_hat(1);
+ CDP_u(1) = com_desired_(1) + 1.0 * CDP_d_hat(1);
  CDP_u(2) = com_desired_(2) + 0.0 * CDP_d_hat(2);
 
  if(walking_tick_mj == 0)
- { CDP_u = com_desired_; }
+ { CDP_u = com_desired_; CDP_d.setZero(); }
 
  if(walking_tick_mj > 0)
  {
@@ -1496,8 +1494,8 @@ void CustomController::CDP_controller()
  CDP_d_hat_p = CDP_d_hat;
  CDP_d_hat = ( 2*(1 + w*zeta*del_t)*CDP_d_hat_p - CDP_d_hat_pp + w*w*del_t*del_t*CDP_d )/( 1 + w*w*del_t*del_t + 2*w*zeta*del_t );
 
- MJ_graph << com_desired_(0) << "," << com_desired_(1) << "," << CDP_u(0) << "," << CDP_u(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << "," << com_float_current_dot_LPF(1) << "," << com_float_current_ddot (1) << endl;
- MJ_ZMP << CDP_d(0) << "," << CDP_d(1) << "," << CDP_d(2) << "," << CDP_d_hat(0) << "," << CDP_d_hat(1) << "," << CDP_d_hat(2) << endl;
+ MJ_graph << com_desired_(0) << "," << com_desired_(1) << "," << CDP_d_hat(0) << "," << CDP_d_hat(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << endl;
+ //MJ_ZMP << CDP_d(0) << "," << CDP_d(1) << "," << CDP_d(2) << "," << CDP_d_hat(0) << "," << CDP_d_hat(1) << "," << CDP_d_hat(2) << endl;
 
 }
 
