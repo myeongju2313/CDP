@@ -772,12 +772,13 @@ void CustomController::Joint_gain_set_MJ()
 void CustomController::addZmpOffset()
 {
  double lfoot_zmp_offset_, rfoot_zmp_offset_;
-
+ 
  lfoot_zmp_offset_ = -0.04;
  rfoot_zmp_offset_ = 0.04;
 
  foot_step_support_frame_offset_ = foot_step_support_frame_;
-
+ 
+ supportfoot_support_init_offset_ = supportfoot_support_init_;
 
  if(foot_step_(0,6) == 0) //right support foot
  {
@@ -812,8 +813,11 @@ void CustomController::getZmpTrajectory()
    norm_size = (t_last_ - t_start_ + 1)*(total_step_num_ - current_step_num_) + 3.0*hz_;
  else
    norm_size = (t_last_ - t_start_ + 1)*(planning_step_number);
+
  if(current_step_num_ == 0)
-   norm_size = norm_size + t_temp_ + 1;
+   norm_size = norm_size + t_temp_ + 1; 
+ 
+ //norm size 충분함.
  addZmpOffset();
  zmpGenerator(norm_size, planning_step_number);
 }
@@ -821,15 +825,15 @@ void CustomController::getZmpTrajectory()
 void CustomController::zmpGenerator(const unsigned int norm_size, const unsigned planning_step_num)
 {
  ref_zmp_.resize(norm_size, 2);
+ ref_zmp_.setZero();
  Eigen::VectorXd temp_px;
  Eigen::VectorXd temp_py;
 
- unsigned int index = 0;
- // 매 tick 마다 zmp가 3발 앞까지 계산 된다.
+ unsigned int index = 0; 
 
- if(current_step_num_ == 0) // Walking을 수행 할 때, 정지 상태 일때 3초 동안 Ref X ZMP를 0으로 보냄. Y ZMP는 제자리 유지.
+ if(current_step_num_ == 0)  
  {
-   for (int i = 0; i <= t_temp_; i++) //600 tick
+   for (int i = 0; i <= t_temp_; i++)  
    {
      if(i < 1.0*hz_)
      {
@@ -847,7 +851,7 @@ void CustomController::zmpGenerator(const unsigned int norm_size, const unsigned
        ref_zmp_(i,0) = 0.0;
        ref_zmp_(i,1) = com_support_init_(1) ;
      }
-     index++;
+     index++; // 여기서 index 4초
    }
  }
  /////////////////////////////////////////////////////////////////////
@@ -877,13 +881,12 @@ void CustomController::zmpGenerator(const unsigned int norm_size, const unsigned
    for(unsigned int i = current_step_num_; i < current_step_num_ + planning_step_num; i++)
    {
      onestepZmp(i, temp_px, temp_py);
-     for (unsigned int j = 0; j < t_total_; j++) // 1 step 보행은 1.2초, 240 tick
+     for (unsigned int j = 0; j < t_total_; j++)  // 4초 + 1.3초 * 3
      {
        ref_zmp_(index+j,0) = temp_px(j);
        ref_zmp_(index+j,1) = temp_py(j);
      }
-     index = index + t_total_; // 참조 zmp가 이만큼 쌓였다.
-     // 결국 실제 로봇 1Hz마다 720개의 ref_zmp를 생성함. 3.6초
+     index = index + t_total_;  
    }
  }
 }
@@ -903,23 +906,23 @@ void CustomController::onestepZmp(unsigned int current_step_number, Eigen::Vecto
    Kx2 = foot_step_support_frame_offset_(current_step_number,0) / 2 - supportfoot_support_init_offset_(0);
    Ky2 = foot_step_support_frame_offset_(current_step_number,1) / 2 - supportfoot_support_init_offset_(1) ;
 
-   for(int i = 0; i < t_total_; i++)
+   for(int i = 0; i < t_total_; i++) // 1.3초 동안 ZMP 생성
    {
-     if(i >= 0 && i < t_rest_init_ + t_double1_) //0.05 ~ 0.15초 , 10 ~ 30 tick
+     if(i >= 0 && i < t_rest_init_ + t_double1_)  
      {
        temp_px(i) = Kx / (t_double1_ + t_rest_init_) * (i+1);
        temp_py(i) = com_support_init_(1) + Ky / (t_double1_ + t_rest_init_) * (i+1);
      }
-     else if(i >= t_rest_init_ + t_double1_ && i < t_total_ - t_rest_last_ - t_double2_ ) //0.15 ~ 1.05초 , 30 ~ 210 tick
+     else if(i >= t_rest_init_ + t_double1_ && i < t_total_ - t_rest_last_ - t_double2_ )  
      {
-       temp_px(i) = supportfoot_support_init_offset_(0);
+       temp_px(i) = 0;
        temp_py(i) = supportfoot_support_init_offset_(1);
      }
-     else if(i >= t_total_ - t_rest_last_ - t_double2_  && i < t_total_ ) //1.05 ~ 1.15초 , 210 ~ 230 tick
+     else if(i >= t_total_ - t_rest_last_ - t_double2_  && i < t_total_ )  
      {
-       temp_px(i) = supportfoot_support_init_offset_(0) + Kx2 / (t_rest_last_ + t_double2_) * (i+1 - (t_total_ - t_rest_last_ - t_double2_));
+       temp_px(i) = Kx2 / (t_rest_last_ + t_double2_) * (i+1 - (t_total_ - t_rest_last_ - t_double2_));
        temp_py(i) = supportfoot_support_init_offset_(1) + Ky2 / (t_rest_last_ + t_double2_) * (i+1 - (t_total_ - t_rest_last_ - t_double2_));
-     }
+     } 
    }
  }
  else if(current_step_number == 1)
@@ -1213,6 +1216,7 @@ void CustomController::preview_Parameter(double dt, int NL, Eigen::MatrixXd& Gi,
    {
        Gd.segment(i,1) = Gd_col;
        Gd_col = Temp_mat_inv * B_bar_tran * X_bar.col(i) ;
+       //cout << Gd(i) << endl;
    }
 
 }
@@ -1224,8 +1228,10 @@ void CustomController::previewcontroller(double dt, int NL, int tick, double x_i
    int zmp_size;
    zmp_size = ref_zmp_.col(1).size();
    Eigen::VectorXd px_ref, py_ref;
-   px_ref.resize(zmp_size);
-   py_ref.resize(zmp_size);
+   px_ref.resize(zmp_size); 
+   py_ref.resize(zmp_size); 
+   px_ref.setZero();
+   py_ref.setZero();
 
    for(int i = 0; i < zmp_size; i++)
    {
@@ -1244,6 +1250,7 @@ void CustomController::previewcontroller(double dt, int NL, int tick, double x_i
 
    Eigen::VectorXd px, py;
    px.resize(1); py.resize(1);
+   px.setZero(); py.setZero();
 
    if(tick == 0 && current_step_num_ == 0)
    {
@@ -1257,7 +1264,7 @@ void CustomController::previewcontroller(double dt, int NL, int tick, double x_i
        cout << preview_x << "," << preview_y << endl;
    }
    else
-   {
+   {    
        preview_x = xs; preview_y = ys;
 
        preview_x_b(0) = preview_x(0) - preview_x(1)*0.0005;
@@ -1266,19 +1273,21 @@ void CustomController::previewcontroller(double dt, int NL, int tick, double x_i
        preview_y_b(1) = preview_y(1) - preview_y(2)*0.0005;
        preview_x_b(2) = preview_x(2) - UX*0.0005;
        preview_y_b(2) = preview_y(2) - UY*0.0005;
-
+       
    }
    px = C*preview_x;
    py = C*preview_y;
-
+   
    double sum_Gd_px_ref = 0, sum_Gd_py_ref = 0;
 
+   //cout << sum_Gd_px_ref << "," << tick/2000.0 << "," << walking_tick_mj/2000.0 << endl; 
    for(int i = 0; i < NL; i++)
-   {
-       sum_Gd_px_ref = sum_Gd_px_ref + Gd(i)*(px_ref(tick + 1 + i) - px_ref(tick + i));
-       sum_Gd_py_ref = sum_Gd_py_ref + Gd(i)*(py_ref(tick + 1 + i) - py_ref(tick + i));
+   { 
+     sum_Gd_px_ref = sum_Gd_px_ref + Gd(i)*(px_ref(tick + 1 + i) - px_ref(tick + i));
+     sum_Gd_py_ref = sum_Gd_py_ref + Gd(i)*(py_ref(tick + 1 + i) - py_ref(tick + i));
    }
-
+   //cout << sum_Gd_px_ref << "," <<  tick/2000.0  << "," << walking_tick_mj/2000.0 << endl;
+   
    Eigen::MatrixXd del_ux(1,1);
    Eigen::MatrixXd del_uy(1,1);
    del_ux.setZero();
@@ -1293,16 +1302,16 @@ void CustomController::previewcontroller(double dt, int NL, int tick, double x_i
    {
      del_zmp.setZero(); cout << del_zmp(0) << "," << del_zmp(1) << endl;
    }
-
-   del_ux(0,0) = -(px(0) - (px_ref(tick) + del_zmp(0)))*Gi(0,0) - GX_X(0) - sum_Gd_px_ref;
-   del_uy(0,0) = -(py(0) - (py_ref(tick) + del_zmp(1)))*Gi(0,0) - GX_Y(0) - sum_Gd_py_ref;
-
+      
+   del_ux(0,0) = -(px(0) - px_ref(tick)) * Gi(0,0) - GX_X(0) - sum_Gd_px_ref;
+   del_uy(0,0) = -(py(0) - py_ref(tick)) * Gi(0,0) - GX_Y(0) - sum_Gd_py_ref;
+   
    UX = UX + del_ux(0,0);
    UY = UY + del_uy(0,0);
 
    XD = A*preview_x + B*UX;
    YD = A*preview_y + B*UY;
-
+   
    SC_err_compen(XD, YD); 
 
    if(walking_tick_mj == 0)
@@ -1322,8 +1331,8 @@ void CustomController::previewcontroller(double dt, int NL, int tick, double x_i
    cp_measured_(0) = com_support_current_(0) + preview_x(1)/wn;
    cp_measured_(1) = com_support_current_(1) + preview_y(1)/wn;
 
-   del_zmp(0) = 0*(cp_measured_(0) - cp_desired_(0));
-   del_zmp(1) = 0*(cp_measured_(1) - cp_desired_(1));
+   del_zmp(0) = 0.0*(cp_measured_(0) - cp_desired_(0));
+   del_zmp(1) = 0.0*(cp_measured_(1) - cp_desired_(1));
       
 }
 
@@ -1430,9 +1439,9 @@ void CustomController::getComTrajectory()
  { zmp_start_time_ = 0.0; }
  else
  { zmp_start_time_ = t_start_; }
-
+ 
  previewcontroller(0.0005, 3200, walking_tick_mj - zmp_start_time_, xi_, yi_, xs_, ys_, UX_, UY_, Gi_, Gd_, Gx_, A_, B_, C_, xd_, yd_);
-
+ 
  xs_ = xd_; ys_ = yd_;
  
  com_desired_(0) = xd_(0);
@@ -1445,6 +1454,7 @@ void CustomController::getComTrajectory()
 
  if (walking_tick_mj == t_start_ + t_total_-1 && current_step_num_ != total_step_num_-1)
  {
+   cout << walking_tick_mj << endl;
    Eigen::Vector3d com_pos_prev;
    Eigen::Vector3d com_pos;
    Eigen::Vector3d com_vel_prev;
@@ -1495,8 +1505,8 @@ void CustomController::CDP_controller()
 
  double kp_x, kv_x, kp_y, kv_y, kp_z, kv_z = 0;
  kp_x = 103; kv_y = 11;
-//kp_y = 1005; kv_y = 14; // 실험
- kp_y = 263; kv_y = 11; // 시뮬
+kp_y = 1005; kv_y = 14; // 실험
+//  kp_y = 263; kv_y = 11; // 시뮬
  kp_z = 103; kv_z = 11;
 
  CDP_u(0) = com_desired_(0) + 0.0 * CDP_d_hat(0);
@@ -1523,7 +1533,7 @@ void CustomController::CDP_controller()
  CDP_d_hat_p = CDP_d_hat;
  CDP_d_hat = ( 2*(1 + w*zeta*del_t)*CDP_d_hat_p - CDP_d_hat_pp + w*w*del_t*del_t*CDP_d )/( 1 + w*w*del_t*del_t + 2*w*zeta*del_t );
 
- MJ_graph << com_desired_(0) << "," << com_desired_(1) << "," << CDP_d_hat(0) << "," << CDP_d_hat(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << endl;
+ //MJ_graph << com_desired_(0) << "," << com_desired_(1) << "," << CDP_d_hat(0) << "," << CDP_d_hat(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << endl;
  //MJ_ZMP << CDP_d(0) << "," << CDP_d(1) << "," << CDP_d(2) << "," << CDP_d_hat(0) << "," << CDP_d_hat(1) << "," << CDP_d_hat(2) << endl;
 
 }
