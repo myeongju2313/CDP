@@ -1347,21 +1347,47 @@ void CustomController::SC_err_compen(Eigen::Vector3d x_des, Eigen::Vector3d y_de
   SC_com(0) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.005*hz_, sc_err(0), 0, 0.0, 0.0);
   SC_com(1) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.005*hz_, sc_err(1), 0, 0.0, 0.0);
 }
+
+void CustomController::SC_pelv_err_compen(Eigen::Vector3d pelv_des, Eigen::Vector3d pelv_real)
+{
+  if (walking_tick_mj == t_start_ + t_total_-1 && current_step_num_ != total_step_num_-1)
+  { 
+    sc_pelv_err_before.setZero();
+    sc_pelv_err_before(0) = pelv_des(0) - pelv_real(0);
+    sc_pelv_err_before(1) = pelv_des(1) - pelv_real(1);
+  }
+
+  if(current_step_num_ != 0 && walking_tick_mj == t_start_)
+  {
+    sc_pelv_err_after.setZero();
+    sc_pelv_err_after(0) = pelv_des(0) - pelv_real(0);
+    sc_pelv_err_after(1) = pelv_des(1) - pelv_real(1);
+    sc_pelv_err = sc_pelv_err_after - sc_pelv_err_before; 
+  }
+
+  SC_pelv(0) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.005*hz_, sc_pelv_err(0), 0, 0.0, 0.0);
+  SC_pelv(1) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.005*hz_, sc_pelv_err(1), 0, 0.0, 0.0);
+}
+
 void CustomController::getPelvTrajectory()
 {
  double z_rot = foot_step_support_frame_(current_step_num_,5);
 
+ SC_pelv_err_compen(pelv_support_current_.translation() + 0.7*(CDP_u - com_support_current_), pelv_support_current_.translation());
+ 
  if(walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 0.005*hz_)
  {
    com_support_current_(0) = com_support_current_(0) + SC_com(0);
    com_support_current_(1) = com_support_current_(1) + SC_com(1);
+   pelv_support_current_.translation()(0) = pelv_support_current_.translation()(0) + SC_pelv(0);
+   pelv_support_current_.translation()(1) = pelv_support_current_.translation()(1) + SC_pelv(1); 
  }
+
  pelv_trajectory_support_.translation()(0) = pelv_support_current_.translation()(0) + 0.7*(CDP_u(0) - com_support_current_(0)) ;//- 0.01 * zmp_err_(0) * 0;
  pelv_trajectory_support_.translation()(1) = pelv_support_current_.translation()(1) + 0.7*(CDP_u(1) - com_support_current_(1)) ;//- 0.01 * zmp_err_(1) * 0;
-
  pelv_trajectory_support_.translation()(2) = CDP_u(2);
 
-
+ //MJ_graph << com_desired_(0) << "," << com_desired_(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << "," << pelv_trajectory_support_.translation()(0) << "," << pelv_trajectory_support_.translation()(1) << "," << pelv_support_current_.translation()(0) << "," << pelv_support_current_.translation()(1) << endl;
  Eigen::Vector3d Trunk_trajectory_euler;
  Trunk_trajectory_euler.setZero();
 
@@ -1408,9 +1434,12 @@ void CustomController::getComTrajectory()
  previewcontroller(0.0005, 3200, walking_tick_mj - zmp_start_time_, xi_, yi_, xs_, ys_, UX_, UY_, Gi_, Gd_, Gx_, A_, B_, C_, xd_, yd_);
 
  xs_ = xd_; ys_ = yd_;
-
+ 
  com_desired_(0) = xd_(0);
- com_desired_(1) = yd_(0);
+ com_desired_(1) = yd_(0); 
+ 
+ if(current_step_num_ == 1)
+ { com_desired_(1) = 0.10250; }
  com_desired_(2) = pelv_support_start_.translation()(2);
 
 
@@ -1466,12 +1495,12 @@ void CustomController::CDP_controller()
 
  double kp_x, kv_x, kp_y, kv_y, kp_z, kv_z = 0;
  kp_x = 103; kv_y = 11;
- kp_y = 1005; kv_y = 14; // 실험
- //kp_y = 103; kv_y = 11; // 시뮬
+//kp_y = 1005; kv_y = 14; // 실험
+ kp_y = 263; kv_y = 11; // 시뮬
  kp_z = 103; kv_z = 11;
 
  CDP_u(0) = com_desired_(0) + 0.0 * CDP_d_hat(0);
- CDP_u(1) = com_desired_(1) + 1.0 * CDP_d_hat(1);
+ CDP_u(1) = com_desired_(1) + 0.0 * CDP_d_hat(1);
  CDP_u(2) = com_desired_(2) + 0.0 * CDP_d_hat(2);
 
  if(walking_tick_mj == 0)
