@@ -689,7 +689,7 @@ void CustomController::floatToSupportFootstep()
 
 void CustomController::Joint_gain_set_MJ()
 {
-   //simulation gains
+  //  //simulation gains
   //  Kp(0) = 1800.0; Kd(0) = 70.0; // Left Hip yaw
   //  Kp(1) = 2100.0; Kd(1) = 90.0;// Left Hip roll
   //  Kp(2) = 2100.0; Kd(2) = 90.0;// Left Hip pitch
@@ -1312,8 +1312,6 @@ void CustomController::previewcontroller(double dt, int NL, int tick, double x_i
    XD = A*preview_x + B*UX;
    YD = A*preview_y + B*UY;
    
-   SC_err_compen(XD, YD); 
-
    if(walking_tick_mj == 0)
    {
      zmp_err_(0) = 0;
@@ -1336,20 +1334,20 @@ void CustomController::previewcontroller(double dt, int NL, int tick, double x_i
       
 }
 
-void CustomController::SC_err_compen(Eigen::Vector3d x_des, Eigen::Vector3d y_des)
+void CustomController::SC_err_compen(double x_des, double y_des)
 {
   if (walking_tick_mj == t_start_ + t_total_-1 && current_step_num_ != total_step_num_-1)
   { 
     sc_err_before.setZero();
-    sc_err_before(0) = x_des(0) - com_support_current_(0);
-    sc_err_before(1) = y_des(0) - com_support_current_(1);
+    sc_err_before(0) = x_des - com_support_current_(0);
+    sc_err_before(1) = y_des - com_support_current_(1);
   }
 
   if(current_step_num_ != 0 && walking_tick_mj == t_start_)
   {
     sc_err_after.setZero();
-    sc_err_after(0) = x_des(0) - com_support_current_(0);
-    sc_err_after(1) = y_des(0) - com_support_current_(1);
+    sc_err_after(0) = x_des - com_support_current_(0);
+    sc_err_after(1) = y_des - com_support_current_(1);
     sc_err = sc_err_after - sc_err_before;
   }
 
@@ -1381,22 +1379,19 @@ void CustomController::SC_pelv_err_compen(Eigen::Vector3d pelv_des, Eigen::Vecto
 void CustomController::getPelvTrajectory()
 {
  double z_rot = foot_step_support_frame_(current_step_num_,5);
-
- SC_pelv_err_compen(pelv_support_current_.translation() + 0.7*(CDP_u - com_support_current_), pelv_support_current_.translation());
  
  if(walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 0.005*hz_)
  {
    com_support_current_(0) = com_support_current_(0) + SC_com(0);
    com_support_current_(1) = com_support_current_(1) + SC_com(1);
-   pelv_support_current_.translation()(0) = pelv_support_current_.translation()(0) + SC_pelv(0);
-   pelv_support_current_.translation()(1) = pelv_support_current_.translation()(1) + SC_pelv(1); 
  }
 
+ MJ_graph << CDP_u(0) << "," << CDP_u(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << endl; 
+ 
  pelv_trajectory_support_.translation()(0) = pelv_support_current_.translation()(0) + 0.7*(CDP_u(0) - com_support_current_(0)) ;//- 0.01 * zmp_err_(0) * 0;
  pelv_trajectory_support_.translation()(1) = pelv_support_current_.translation()(1) + 0.7*(CDP_u(1) - com_support_current_(1)) ;//- 0.01 * zmp_err_(1) * 0;
  pelv_trajectory_support_.translation()(2) = CDP_u(2);
 
- //MJ_graph << com_desired_(0) << "," << com_desired_(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << "," << pelv_trajectory_support_.translation()(0) << "," << pelv_trajectory_support_.translation()(1) << "," << pelv_support_current_.translation()(0) << "," << pelv_support_current_.translation()(1) << endl;
  Eigen::Vector3d Trunk_trajectory_euler;
  Trunk_trajectory_euler.setZero();
 
@@ -1410,7 +1405,6 @@ void CustomController::getPelvTrajectory()
  //cout << z_rot *180/M_PI << "," << current_step_num_ << endl;
 
  pelv_trajectory_support_.linear() = DyrosMath::rotateWithZ(Trunk_trajectory_euler(2))*DyrosMath::rotateWithY(Trunk_trajectory_euler(1))*DyrosMath::rotateWithX(Trunk_trajectory_euler(0));
-
 
 }
 
@@ -1454,7 +1448,6 @@ void CustomController::getComTrajectory()
 
  if (walking_tick_mj == t_start_ + t_total_-1 && current_step_num_ != total_step_num_-1)
  {
-   cout << walking_tick_mj << endl;
    Eigen::Vector3d com_pos_prev;
    Eigen::Vector3d com_pos;
    Eigen::Vector3d com_vel_prev;
@@ -1505,14 +1498,16 @@ void CustomController::CDP_controller()
 
  double kp_x, kv_x, kp_y, kv_y, kp_z, kv_z = 0;
  kp_x = 103; kv_y = 11;
-kp_y = 1005; kv_y = 14; // 실험
+ kp_y = 1005; kv_y = 14; // 실험
 //  kp_y = 263; kv_y = 11; // 시뮬
  kp_z = 103; kv_z = 11;
 
  CDP_u(0) = com_desired_(0) + 0.0 * CDP_d_hat(0);
  CDP_u(1) = com_desired_(1) + 0.0 * CDP_d_hat(1);
  CDP_u(2) = com_desired_(2) + 0.0 * CDP_d_hat(2);
-
+ 
+ SC_err_compen(CDP_u(0), CDP_u(1)); 
+ 
  if(walking_tick_mj == 0)
  { CDP_u = com_desired_; CDP_d.setZero(); }
 
@@ -1521,9 +1516,6 @@ kp_y = 1005; kv_y = 14; // 실험
    CDP_d(0) = (com_float_current_ddot(0) + kv_x * com_float_current_dot_LPF(0) + kp_x * com_support_current_(0))/kp_x - CDP_u(0);
    CDP_d(1) = (com_float_current_ddot(1) + kv_y * com_float_current_dot_LPF(1) + kp_y * com_support_current_(1))/kp_y - CDP_u(1);
    CDP_d(2) = (com_float_current_ddot(2) + kv_z * com_float_current_dot_LPF(2) + kp_z * pelv_support_current_.translation()(2))/kp_z - CDP_u(2);
-  //  CDP_d(0) = (preview_x(2) + kv_x * com_float_current_dot_LPF(0) + kp_x * com_support_current_(0))/kp_x - CDP_u(0);
-  //  CDP_d(1) = (preview_y(2) + kv_y * com_float_current_dot_LPF(1) + kp_y * com_support_current_(1))/kp_y - CDP_u(1);
-  //  CDP_d(2) = (0 + kv_z * com_float_current_dot_LPF(2) + kp_z * pelv_support_current_.translation()(2))/kp_z - CDP_u(2);
  }
 
  if(walking_tick_mj == 0)
@@ -1532,7 +1524,7 @@ kp_y = 1005; kv_y = 14; // 실험
  CDP_d_hat_pp = CDP_d_hat_p;
  CDP_d_hat_p = CDP_d_hat;
  CDP_d_hat = ( 2*(1 + w*zeta*del_t)*CDP_d_hat_p - CDP_d_hat_pp + w*w*del_t*del_t*CDP_d )/( 1 + w*w*del_t*del_t + 2*w*zeta*del_t );
-
+ 
  //MJ_graph << com_desired_(0) << "," << com_desired_(1) << "," << CDP_d_hat(0) << "," << CDP_d_hat(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << endl;
  //MJ_ZMP << CDP_d(0) << "," << CDP_d(1) << "," << CDP_d(2) << "," << CDP_d_hat(0) << "," << CDP_d_hat(1) << "," << CDP_d_hat(2) << endl;
 

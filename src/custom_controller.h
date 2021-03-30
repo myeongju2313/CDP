@@ -48,7 +48,7 @@ public:
 
   void CDP_controller();
   
-  void SC_err_compen(Eigen::Vector3d x_des, Eigen::Vector3d y_des);
+  void SC_err_compen(double x_des, double y_des);
   void SC_pelv_err_compen(Eigen::Vector3d pelv_des, Eigen::Vector3d pelv_real);
 
   Eigen::Vector12d pre_motor_q_leg_;
