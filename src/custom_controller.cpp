@@ -348,7 +348,7 @@ void CustomController::calculateFootStepTotal()
 
  if(length_to_target == 0)
  {
-   middle_total_step_number = 12; //
+   middle_total_step_number = 10; //
    dlength = 0;
  }
 
@@ -733,14 +733,14 @@ void CustomController::Joint_gain_set_MJ()
    Kp(1) = 5000.0; Kd(1) = 50.0;// Left Hip roll
    Kp(2) = 4000.0; Kd(2) = 20.0;// Left Hip pitch
    Kp(3) = 3700.0; Kd(3) = 25.0;// Left Knee pitch
-   Kp(4) = 5000.0; Kd(4) = 30.0;// Left Ankle pitch /5000 / 30
+   Kp(4) = 5500.0; Kd(4) = 30.0;// Left Ankle pitch /5000 / 30
    Kp(5) = 5000.0; Kd(5) = 30.0;// Left Ankle roll /5000 / 30
 
    Kp(6) = 2000.0; Kd(6) = 15.0;// Right Hip yaw
    Kp(7) = 5000.0; Kd(7) = 50.0;// Right Hip roll
    Kp(8) = 4000.0; Kd(8) = 20.0;// Right Hip pitch
    Kp(9) = 3700.0; Kd(9) = 25.0;// Right Knee pitch
-   Kp(10) = 5000.0; Kd(10) = 30.0;// Right Ankle pitch
+   Kp(10) = 5500.0; Kd(10) = 30.0;// Right Ankle pitch
    Kp(11) = 5000.0; Kd(11) = 30.0;// Right Ankle roll
 
    Kp(12) = 6000.0; Kd(12) = 200.0;// Waist yaw
@@ -1351,10 +1351,10 @@ void CustomController::SC_err_compen(double x_des, double y_des)
     sc_err = sc_err_after - sc_err_before;
   }
 
-  SC_com(0) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.005*hz_, sc_err(0), 0, 0.0, 0.0);
-  SC_com(1) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.005*hz_, sc_err(1), 0, 0.0, 0.0);
+  SC_com(0) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.003*hz_, sc_err(0), 0, 0.0, 0.0);
+  SC_com(1) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.003*hz_, sc_err(1), 0, 0.0, 0.0);
 }
-
+/*
 void CustomController::SC_pelv_err_compen(Eigen::Vector3d pelv_des, Eigen::Vector3d pelv_real)
 {
   if (walking_tick_mj == t_start_ + t_total_-1 && current_step_num_ != total_step_num_-1)
@@ -1372,21 +1372,21 @@ void CustomController::SC_pelv_err_compen(Eigen::Vector3d pelv_des, Eigen::Vecto
     sc_pelv_err = sc_pelv_err_after - sc_pelv_err_before; 
   }
 
-  SC_pelv(0) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.005*hz_, sc_pelv_err(0), 0, 0.0, 0.0);
-  SC_pelv(1) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.005*hz_, sc_pelv_err(1), 0, 0.0, 0.0);
+  SC_pelv(0) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.01*hz_, sc_pelv_err(0), 0, 0.0, 0.0);
+  SC_pelv(1) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.01*hz_, sc_pelv_err(1), 0, 0.0, 0.0);
 }
-
+*/
 void CustomController::getPelvTrajectory()
 {
  double z_rot = foot_step_support_frame_(current_step_num_,5);
  
- if(walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 0.005*hz_)
+ if(walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 0.003*hz_)
  {
    com_support_current_(0) = com_support_current_(0) + SC_com(0);
    com_support_current_(1) = com_support_current_(1) + SC_com(1);
  }
 
- MJ_graph << CDP_u(0) << "," << CDP_u(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << endl; 
+ MJ_graph << CDP_u(0) << "," << CDP_u(1) << "," << com_desired_(0) << "," << com_desired_(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << endl; 
  
  pelv_trajectory_support_.translation()(0) = pelv_support_current_.translation()(0) + 0.7*(CDP_u(0) - com_support_current_(0)) ;//- 0.01 * zmp_err_(0) * 0;
  pelv_trajectory_support_.translation()(1) = pelv_support_current_.translation()(1) + 0.7*(CDP_u(1) - com_support_current_(1)) ;//- 0.01 * zmp_err_(1) * 0;
@@ -1503,7 +1503,7 @@ void CustomController::CDP_controller()
  kp_z = 103; kv_z = 11;
 
  CDP_u(0) = com_desired_(0) + 0.0 * CDP_d_hat(0);
- CDP_u(1) = com_desired_(1) + 0.0 * CDP_d_hat(1);
+ CDP_u(1) = com_desired_(1) + 1.25 * CDP_d_hat(1);
  CDP_u(2) = com_desired_(2) + 0.0 * CDP_d_hat(2);
  
  SC_err_compen(CDP_u(0), CDP_u(1)); 
@@ -1525,7 +1525,7 @@ void CustomController::CDP_controller()
  CDP_d_hat_p = CDP_d_hat;
  CDP_d_hat = ( 2*(1 + w*zeta*del_t)*CDP_d_hat_p - CDP_d_hat_pp + w*w*del_t*del_t*CDP_d )/( 1 + w*w*del_t*del_t + 2*w*zeta*del_t );
  
- //MJ_graph << com_desired_(0) << "," << com_desired_(1) << "," << CDP_d_hat(0) << "," << CDP_d_hat(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << endl;
+ //MJ_graph << CDP_u(0) << "," << CDP_u(1) << "," << CDP_d_hat(0) << "," << CDP_d_hat(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << endl;
  //MJ_ZMP << CDP_d(0) << "," << CDP_d(1) << "," << CDP_d(2) << "," << CDP_d_hat(0) << "," << CDP_d_hat(1) << "," << CDP_d_hat(2) << endl;
 
 }
