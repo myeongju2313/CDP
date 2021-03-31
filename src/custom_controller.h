@@ -49,7 +49,7 @@ public:
   void CDP_controller();
   
   void SC_err_compen(double x_des, double y_des);
-  void SC_pelv_err_compen(Eigen::Vector3d pelv_des, Eigen::Vector3d pelv_real);
+  //void SC_pelv_err_compen(Eigen::Vector3d pelv_des, Eigen::Vector3d pelv_real);
 
   Eigen::Vector12d pre_motor_q_leg_;
   Eigen::Vector12d current_motor_q_leg_;
@@ -116,10 +116,10 @@ public:
   Eigen::Vector2d SC_com;
   Eigen::Vector2d sc_err;
 
-  Eigen::Vector2d sc_pelv_err_before;
-  Eigen::Vector2d sc_pelv_err_after;
-  Eigen::Vector2d SC_pelv;
-  Eigen::Vector2d sc_pelv_err;
+  Eigen::Vector12d sc_joint_before;
+  Eigen::Vector12d sc_joint_after;
+  Eigen::Vector12d SC_joint;
+  Eigen::Vector12d sc_joint_err;
 
   double walking_end_flag = 0;
 

@@ -72,13 +72,13 @@ void CustomController::computeSlow()
            getPelvTrajectory();
            supportToFloatPattern();
            computeIkControl_MJ(pelv_trajectory_float_, lfoot_trajectory_float_, rfoot_trajectory_float_, q_des);
-
+           MJ_joint << q_des(0) << "," << q_des(1) << "," << q_des(2) << "," << q_des(3) << "," << q_des(4) << "," << q_des(5) << endl; 
            for(int i = 0; i < 12; i ++)
            {
              ref_q_(i) = q_des(i);
            }
            GravityCalculate_MJ();
-
+           //MJ_graph << Gravity_MJ_(0) << "," << Gravity_MJ_(1) << "," << Gravity_MJ_(2) << "," << Gravity_MJ_(3) << "," << Gravity_MJ_(4) << "," << Gravity_MJ_(5) << endl;  
            if(walking_tick_mj < 1.0*hz_)
            {
              for(int i = 0; i < 12; i ++)
@@ -291,7 +291,6 @@ void CustomController::getRobotState()
    { com_support_current_prev = com_support_current_; }
    com_support_current_LPF = DyrosMath::multiplyIsometry3dVector3d(DyrosMath::inverseIsometry3d(supportfoot_float_current_), com_float_current_LPF);
 
-
    l_ft_ = rd_.ContactForce_FT_raw.segment(0, 6);
    r_ft_ = rd_.ContactForce_FT_raw.segment(6, 6);
 
@@ -348,7 +347,7 @@ void CustomController::calculateFootStepTotal()
 
  if(length_to_target == 0)
  {
-   middle_total_step_number = 10; //
+   middle_total_step_number = 6; //
    dlength = 0;
  }
 
@@ -1335,52 +1334,38 @@ void CustomController::previewcontroller(double dt, int NL, int tick, double x_i
 }
 
 void CustomController::SC_err_compen(double x_des, double y_des)
-{
-  if (walking_tick_mj == t_start_ + t_total_-1 && current_step_num_ != total_step_num_-1)
-  { 
+{ 
+  if(walking_tick_mj == 0)
+  {
+    SC_com.setZero();
+  }
+  if (walking_tick_mj == t_start_ + t_total_-1 && current_step_num_ != total_step_num_-1) // step change 1 tick 이전
+  {  
     sc_err_before.setZero();
-    sc_err_before(0) = x_des - com_support_current_(0);
-    sc_err_before(1) = y_des - com_support_current_(1);
+    sc_err_before(0) = x_des - (com_support_current_(0) + SC_com(0)); // 1.3으로 할꺼면 마지막에 더해야됨. SC_com을 이 함수보다 나중에 더하기 때문에
+    sc_err_before(1) = y_des - (com_support_current_(1) + SC_com(1));
   }
 
-  if(current_step_num_ != 0 && walking_tick_mj == t_start_)
-  {
+  if(current_step_num_ != 0 && walking_tick_mj == t_start_) // step change 
+  { 
     sc_err_after.setZero();
-    sc_err_after(0) = x_des - com_support_current_(0);
+    sc_err_after(0) = x_des - com_support_current_(0); 
     sc_err_after(1) = y_des - com_support_current_(1);
     sc_err = sc_err_after - sc_err_before;
-  }
+  } 
 
-  SC_com(0) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.003*hz_, sc_err(0), 0, 0.0, 0.0);
-  SC_com(1) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.003*hz_, sc_err(1), 0, 0.0, 0.0);
-}
-/*
-void CustomController::SC_pelv_err_compen(Eigen::Vector3d pelv_des, Eigen::Vector3d pelv_real)
-{
-  if (walking_tick_mj == t_start_ + t_total_-1 && current_step_num_ != total_step_num_-1)
-  { 
-    sc_pelv_err_before.setZero();
-    sc_pelv_err_before(0) = pelv_des(0) - pelv_real(0);
-    sc_pelv_err_before(1) = pelv_des(1) - pelv_real(1);
-  }
-
-  if(current_step_num_ != 0 && walking_tick_mj == t_start_)
+  if(current_step_num_ != 0)
   {
-    sc_pelv_err_after.setZero();
-    sc_pelv_err_after(0) = pelv_des(0) - pelv_real(0);
-    sc_pelv_err_after(1) = pelv_des(1) - pelv_real(1);
-    sc_pelv_err = sc_pelv_err_after - sc_pelv_err_before; 
+    SC_com(0) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 1.3*hz_, sc_err(0), sc_err(0), 0.0, 0.0);
+    SC_com(1) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 1.3*hz_, sc_err(1), sc_err(1), 0.0, 0.0);
   }
-
-  SC_pelv(0) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.01*hz_, sc_pelv_err(0), 0, 0.0, 0.0);
-  SC_pelv(1) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.01*hz_, sc_pelv_err(1), 0, 0.0, 0.0);
 }
-*/
+ 
 void CustomController::getPelvTrajectory()
-{
+{  
  double z_rot = foot_step_support_frame_(current_step_num_,5);
  
- if(walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 0.003*hz_)
+ if(current_step_num_ != 0 && walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 1.3*hz_ )
  {
    com_support_current_(0) = com_support_current_(0) + SC_com(0);
    com_support_current_(1) = com_support_current_(1) + SC_com(1);
@@ -1503,7 +1488,7 @@ void CustomController::CDP_controller()
  kp_z = 103; kv_z = 11;
 
  CDP_u(0) = com_desired_(0) + 0.0 * CDP_d_hat(0);
- CDP_u(1) = com_desired_(1) + 1.25 * CDP_d_hat(1);
+ CDP_u(1) = com_desired_(1) + 0.0 * CDP_d_hat(1);
  CDP_u(2) = com_desired_(2) + 0.0 * CDP_d_hat(2);
  
  SC_err_compen(CDP_u(0), CDP_u(1)); 
@@ -1582,6 +1567,33 @@ void CustomController::computeIkControl_MJ(Eigen::Isometry3d float_trunk_transfo
    q_des(10) = q_des(10) ;
    q_des(11) =  atan2( R_r(1), R_r(2) );
 
+  
+  if(walking_tick_mj == 0)
+  { sc_joint_err.setZero(); }
+
+  if (walking_tick_mj == t_start_ + t_total_-1 && current_step_num_ != total_step_num_-1) // step change 1 tick 이전
+  { //5.3, 0
+    sc_joint_before.setZero();
+    sc_joint_before = q_des;     
+  }
+  if(current_step_num_ != 0 && walking_tick_mj == t_start_) // step change 
+  { //5.3005, 1
+    sc_joint_after.setZero();
+    sc_joint_after = q_des; 
+
+    sc_joint_err = sc_joint_after - sc_joint_before;
+  }
+  if(current_step_num_ != 0)
+  {
+    for(int i = 0; i < 12 ; i ++)
+    { SC_joint(i) = DyrosMath::cubic(walking_tick_mj, t_start_, t_start_ + 0.005*hz_, sc_joint_err(i), 0.0, 0.0, 0.0); }
+    
+    if(walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 0.005*hz_)
+    {
+      q_des = q_des - SC_joint;    
+    }
+  }
+  
 }
 
 void CustomController::GravityCalculate_MJ()
@@ -1648,16 +1660,17 @@ void CustomController::GravityCalculate_MJ()
    }
  }*/
  //else if(walking_tick_mj >= t_start_ + t_total_ - t_rest_last_ && walking_tick_mj < t_start_ + t_total_)
- {
+  
    wbc_.set_contact(rd_, 1, 1);
    Gravity_DSP_ = wbc_.gravity_compensation_torque(rd_);
 
    Gravity_SSP_.setZero();
-   if(foot_step_(current_step_num_,6) == 1) // 왼발 지지
-   { contact_torque_MJ = wbc_.contact_force_redistribution_torque_walking(rd_, Gravity_DSP_, A, B, 1.0, 1); }
-   else if(foot_step_(current_step_num_,6) == 0) // 오른발 지지
-   { contact_torque_MJ = wbc_.contact_force_redistribution_torque_walking(rd_, Gravity_DSP_, A, B, 1.0, 0); }
- }
+   contact_torque_MJ = wbc_.contact_force_redistribution_torque(rd_, Gravity_DSP_, A, B);
+  //  if(foot_step_(current_step_num_,6) == 1) // 왼발 지지
+  //  { contact_torque_MJ = wbc_.contact_force_redistribution_torque_walking(rd_, Gravity_DSP_, A, B, 1.0, 1); }
+  //  else if(foot_step_(current_step_num_,6) == 0) // 오른발 지지
+  //  { contact_torque_MJ = wbc_.contact_force_redistribution_torque_walking(rd_, Gravity_DSP_, A, B, 1.0, 0); }
+  
 
  Gravity_MJ_ = Gravity_DSP_ + Gravity_SSP_ + contact_torque_MJ;
 }
