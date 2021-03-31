@@ -1365,10 +1365,21 @@ void CustomController::getPelvTrajectory()
 {  
  double z_rot = foot_step_support_frame_(current_step_num_,5);
  
- if(current_step_num_ != 0 && walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 1.3*hz_ )
+ if(current_step_num_ != total_step_num_ - 1)
  {
-   com_support_current_(0) = com_support_current_(0) + SC_com(0);
-   com_support_current_(1) = com_support_current_(1) + SC_com(1);
+  if(current_step_num_ != 0 && walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 1.3*hz_)
+  {
+  com_support_current_(0) = com_support_current_(0) + SC_com(0);
+  com_support_current_(1) = com_support_current_(1) + SC_com(1);
+  }
+ }
+ else if(current_step_num_ == total_step_num_ - 1)
+ {
+  if(walking_tick_mj >= t_start_ && walking_tick_mj < t_start_ + 2.6*hz_)
+  {  
+  com_support_current_(0) = com_support_current_(0) + SC_com(0);
+  com_support_current_(1) = com_support_current_(1) + SC_com(1);
+  }
  }
 
  MJ_graph << CDP_u(0) << "," << CDP_u(1) << "," << com_desired_(0) << "," << com_desired_(1) << "," << com_support_current_(0) << "," << com_support_current_(1) << endl; 
